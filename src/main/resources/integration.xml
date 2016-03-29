@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:int="http://www.springframework.org/schema/integration"
+	xmlns:int-stream="http://www.springframework.org/schema/integration/stream"
+	xmlns:int-mqtt="http://www.springframework.org/schema/integration/mqtt"
+	xmlns:int-mongodb="http://www.springframework.org/schema/integration/mongodb"
+	xmlns:mongo="http://www.springframework.org/schema/data/mongo"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/integration/mqtt http://www.springframework.org/schema/integration/mqtt/spring-integration-mqtt.xsd
+		http://www.springframework.org/schema/integration/stream http://www.springframework.org/schema/integration/stream/spring-integration-stream.xsd
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+		http://www.springframework.org/schema/data/mongo http://www.springframework.org/schema/data/mongo/spring-mongo.xsd
+		http://www.springframework.org/schema/integration/mongodb http://www.springframework.org/schema/integration/mongodb/spring-integration-mongodb.xsd">
+
+
+	<bean id="integrationProperties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="location" value="classpath:integration.properties" />
+	</bean>
+	<bean id="mqttClientFactory" class="org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory" />
+	<mongo:db-factory id="mongoDbFactory" host="${mongo.host}" port="${mongo.port}" dbname="${mongo.dbname}" />
+	
+	<int-mqtt:message-driven-channel-adapter
+		id="mqtt" client-id="${mqtt.clientId}" url="${mqtt.url}" qos="2"
+		client-factory="mqttClientFactory" topics="${mqtt.topics}" channel="mongo" />
+	<int-mongodb:outbound-channel-adapter
+		id="mongo" collection-name="${mongo.collection}" mongodb-factory="mongoDbFactory" />
+</beans>
