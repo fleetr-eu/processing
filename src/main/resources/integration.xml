@@ -2,19 +2,26 @@
 <beans xmlns="http://www.springframework.org/schema/beans"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:int="http://www.springframework.org/schema/integration"
 	xmlns:int-mqtt="http://www.springframework.org/schema/integration/mqtt"
-	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+	xmlns:int-stream="http://www.springframework.org/schema/integration/stream"
+	xsi:schemaLocation="http://www.springframework.org/schema/integration/stream http://www.springframework.org/schema/integration/stream/spring-integration-stream-1.0.xsd
 		http://www.springframework.org/schema/integration/mqtt http://www.springframework.org/schema/integration/mqtt/spring-integration-mqtt.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.2.xsd
 		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd">
 
-	<bean id="integrationProperties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+	<bean id="integrationProperties"
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
 		<property name="location" value="classpath:integration.properties" />
 	</bean>
 
-	<bean id="mqttClientFactory" class="org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory">
+	<bean id="mqttClientFactory"
+		class="org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory">
 		<property name="serverURIs" value="${mqtt.url}"></property>
 	</bean>
-	
-	<bean id="deviceRouter" class="eu.fleetr.components.FleetrDeviceRouter" />
+
+	<bean id="deviceRouter" class="eu.fleetr.components.FleetrDeviceRouter">
+		<constructor-arg name="consumerName" value="toProcessor"></constructor-arg>
+	</bean>
 
 	<int:channel id="toRouter">
 		<int:queue />
@@ -27,5 +34,11 @@
 	<int:router ref="deviceRouter" input-channel="toRouter">
 		<int:poller fixed-delay="10" />
 	</int:router>
+
+	<int:channel id="toProcessor" />
+
+	<int:service-activator input-channel="toProcessor" id="fleetrProcessor" method="handleMessage">
+		<bean class="eu.fleetr.components.FleetrMessageHandler" />
+	</int:service-activator>
 
 </beans>

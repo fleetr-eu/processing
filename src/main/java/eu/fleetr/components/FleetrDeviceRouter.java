@@ -9,10 +9,10 @@ import org.json.JSONObject;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.integration.channel.DirectChannel;
+import org.springframework.integration.handler.BridgeHandler;
 import org.springframework.integration.router.AbstractMessageRouter;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.SubscribableChannel;
 
 public class FleetrDeviceRouter extends AbstractMessageRouter {
@@ -21,6 +21,12 @@ public class FleetrDeviceRouter extends AbstractMessageRouter {
 
 	ExpressionParser parser = new SpelExpressionParser();
 
+	private String consumerName;
+
+	public FleetrDeviceRouter(String consumerName) {
+		this.consumerName = consumerName;
+	}
+	
 	protected SubscribableChannel getChannel(Message<?> message) {
 		Long deviceId = getDeviceId(message);
 		SubscribableChannel channel = this.channels.get(deviceId);
@@ -31,10 +37,15 @@ public class FleetrDeviceRouter extends AbstractMessageRouter {
 
 			((DirectChannel) channel).setBeanName("channel-" + deviceId);
 			logger.info("Created new channel:" + ((DirectChannel) channel).getComponentName());
+			
+			Object t = getApplicationContext().getBean(consumerName);
 
-			MessageHandler messageHandler = new FleetrMessageHandler();
-
-			channel.subscribe(messageHandler);
+			DirectChannel consumer = (DirectChannel)t;
+			
+			BridgeHandler bridge = new BridgeHandler();
+			bridge.setOutputChannel(consumer);
+			
+			channel.subscribe(bridge);
 			this.channels.put(deviceId, channel);
 		}
 		logger.info("Found existing channel:" + ((DirectChannel) channel).getComponentName());
