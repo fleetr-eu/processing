@@ -3,11 +3,15 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:int="http://www.springframework.org/schema/integration"
 	xmlns:int-mqtt="http://www.springframework.org/schema/integration/mqtt"
 	xmlns:int-stream="http://www.springframework.org/schema/integration/stream"
+	xmlns:int-mongodb="http://www.springframework.org/schema/integration/mongodb"
+	xmlns:mongo="http://www.springframework.org/schema/data/mongo"
 	xsi:schemaLocation="http://www.springframework.org/schema/integration/stream http://www.springframework.org/schema/integration/stream/spring-integration-stream-1.0.xsd
 		http://www.springframework.org/schema/integration/mqtt http://www.springframework.org/schema/integration/mqtt/spring-integration-mqtt.xsd
 		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
 		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.2.xsd
-		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd">
+		http://www.springframework.org/schema/data/mongo http://www.springframework.org/schema/data/mongo/spring-mongo-1.8.xsd
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+		http://www.springframework.org/schema/integration/mongodb http://www.springframework.org/schema/integration/mongodb/spring-integration-mongodb-4.2.xsd">
 
 	<bean id="integrationProperties"
 		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
@@ -18,6 +22,11 @@
 		class="org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory">
 		<property name="serverURIs" value="${mqtt.url}"></property>
 	</bean>
+
+	<mongo:mongo id="mongo" host="${mongo.host}" port="${mongo.port}" />
+
+	<mongo:db-factory id="mongoDbFactory" host="${mongo.host}"
+		port="${mongo.port}" dbname="fleetr" mongo-ref="mongo" />
 
 	<bean id="deviceRouter" class="eu.fleetr.components.FleetrDeviceRouter">
 		<constructor-arg name="consumerName" value="toProcessor"></constructor-arg>
@@ -35,10 +44,29 @@
 		<int:poller fixed-delay="10" />
 	</int:router>
 
+	<int-mongodb:outbound-channel-adapter
+		id="mongoTap" collection-name="logbook" mongodb-factory="mongoDbFactory"
+		channel="toRouter">
+		<int:poller fixed-delay="10" />
+	</int-mongodb:outbound-channel-adapter>
+
 	<int:channel id="toProcessor" />
 
-	<int:service-activator input-channel="toProcessor" id="fleetrProcessor" method="handleMessage">
-		<bean class="eu.fleetr.components.FleetrMessageHandler" />
-	</int:service-activator>
+	<!-- <int:service-activator input-channel="toProcessor" id="fleetrProcessor" 
+		method="handleMessage" output-channel="toMongo"> <bean class="eu.fleetr.components.FleetrMessageHandler" 
+		/> </int:service-activator> -->
+
+
+	<bean id="fleetrTransformerBean" class="eu.fleetr.components.FleetrMessageTransformer" />
+	<int:transformer id="fleetrTransformer" ref="fleetrTransformerBean"
+		input-channel="toProcessor" method="transform" output-channel="toMongo" />
+	
+	<int:logging-channel-adapter id="logger"
+		level="INFO" channel="toMongo" />
+
+	<int:channel id="toMongo"></int:channel>
+	<int-mongodb:outbound-channel-adapter
+		id="mongoSink" collection-name="trips" mongodb-factory="mongoDbFactory"
+		channel="toMongo" />
 
 </beans>

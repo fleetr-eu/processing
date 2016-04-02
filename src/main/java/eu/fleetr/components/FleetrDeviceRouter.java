@@ -9,6 +9,7 @@ import org.json.JSONObject;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.integration.channel.DirectChannel;
+import org.springframework.integration.endpoint.EventDrivenConsumer;
 import org.springframework.integration.handler.BridgeHandler;
 import org.springframework.integration.router.AbstractMessageRouter;
 import org.springframework.messaging.Message;
@@ -45,7 +46,10 @@ public class FleetrDeviceRouter extends AbstractMessageRouter {
 			BridgeHandler bridge = new BridgeHandler();
 			bridge.setOutputChannel(consumer);
 			
-			channel.subscribe(bridge);
+			EventDrivenConsumer bridgeConsumer = new EventDrivenConsumer(channel, bridge);
+			bridgeConsumer.start();
+			
+			//channel.subscribe(bridge);
 			this.channels.put(deviceId, channel);
 		}
 		logger.info("Found existing channel:" + ((DirectChannel) channel).getComponentName());
