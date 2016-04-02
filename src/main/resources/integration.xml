@@ -34,7 +34,12 @@
 
 	<int:channel id="toRouter">
 		<int:queue />
+		<int:interceptors>
+			<int:wire-tap channel="toMongoTap"/>
+		</int:interceptors>
 	</int:channel>
+
+	<int:channel id="toMongoTap" />
 
 	<int-mqtt:message-driven-channel-adapter
 		id="mqtt" client-factory="mqttClientFactory" client-id="${mqtt.clientId}"
@@ -46,8 +51,8 @@
 
 	<int-mongodb:outbound-channel-adapter
 		id="mongoTap" collection-name="logbook" mongodb-factory="mongoDbFactory"
-		channel="toRouter">
-		<int:poller fixed-delay="10" />
+		channel="toMongoTap">
+		<!-- <int:poller fixed-delay="10" /> -->
 	</int-mongodb:outbound-channel-adapter>
 
 	<int:channel id="toProcessor" />
@@ -61,10 +66,10 @@
 	<int:transformer id="fleetrTransformer" ref="fleetrTransformerBean"
 		input-channel="toProcessor" method="transform" output-channel="toMongo" />
 	
-	<int:logging-channel-adapter id="logger"
-		level="INFO" channel="toMongo" />
+	<!-- <int:logging-channel-adapter id="logger"
+		level="INFO" channel="toMongo" /> -->
 
-	<int:channel id="toMongo"></int:channel>
+	<int:channel id="toMongo" />
 	<int-mongodb:outbound-channel-adapter
 		id="mongoSink" collection-name="trips" mongodb-factory="mongoDbFactory"
 		channel="toMongo" />
