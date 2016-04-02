@@ -1,48 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xmlns:int="http://www.springframework.org/schema/integration"
-	xmlns:context="http://www.springframework.org/schema/context"
-	xmlns:stream="http://www.springframework.org/schema/integration/stream"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:int="http://www.springframework.org/schema/integration"
 	xmlns:int-mqtt="http://www.springframework.org/schema/integration/mqtt"
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
-		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.2.xsd
 		http://www.springframework.org/schema/integration/mqtt http://www.springframework.org/schema/integration/mqtt/spring-integration-mqtt.xsd
-		http://www.springframework.org/schema/integration/stream http://www.springframework.org/schema/integration/stream/spring-integration-stream-1.0.xsd
 		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd">
-
 
 	<bean id="integrationProperties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
 		<property name="location" value="classpath:integration.properties" />
 	</bean>
-	
-	<bean id="deviceRouter" class="eu.fleetr.components.FleetrDeviceRouter" >
-		<constructor-arg name="processorChannelName" value="processorChannel" />
+
+	<bean id="mqttClientFactory" class="org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory">
+		<property name="serverURIs" value="${mqtt.url}"></property>
 	</bean>
 	
-	<int:channel id="toDynamicRouter"/>
+	<bean id="deviceRouter" class="eu.fleetr.components.FleetrDeviceRouter" />
 
-	<stream:stdin-channel-adapter id="stdin">
-		<int:poller fixed-delay="100" max-messages-per-poll="1" />
-	</stream:stdin-channel-adapter>
-	
-	<int:object-to-json-transformer input-channel="stdin" output-channel="toDynamicRouter"/>
-	
-	<!-- <int:bridge id="echo" input-channel="stdin" output-channel="toDynamicRouter"/> -->
+	<int:channel id="toRouter">
+		<int:queue />
+	</int:channel>
 
-	<!-- <bean id="mqttClientFactory" class="org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory" />
-	
-	<int-mqtt:message-driven-channel-adapter id="mqtt" 
-		client-id="${mqtt.clientId}" url="${mqtt.url}" qos="2"
-		client-factory="mqttClientFactory" topics="${mqtt.topics}" 
-		channel="toDynamicRouter" /> -->
-	<!-- 	
-	<bean id="channelResolver" class="eu.fleetr.components.DynamicOutboundChannelResolver" />
- -->
-	<int:router ref="deviceRouter" input-channel="toDynamicRouter"/>
-	
-	<int:channel id="processorChannel" />
-	
-	<stream:stdout-channel-adapter id="stdout" channel="processorChannel"/>
-	
+	<int-mqtt:message-driven-channel-adapter
+		id="mqtt" client-factory="mqttClientFactory" client-id="${mqtt.clientId}"
+		qos="2" topics="${mqtt.topics}" channel="toRouter" />
+
+	<int:router ref="deviceRouter" input-channel="toRouter">
+		<int:poller fixed-delay="10" />
+	</int:router>
+
 </beans>
