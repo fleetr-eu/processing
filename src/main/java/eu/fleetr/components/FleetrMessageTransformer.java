@@ -40,7 +40,7 @@ public class FleetrMessageTransformer {
 		
 		JSONObject vehicle = new JSONObject(mongoTemplate.findOne(query(where("unitId").is(deviceId)), String.class, "vehicles"));
 		if (vehicle != null) {
-			object.append("vechile", vehicle);
+			object.append("vehicle", vehicle);
 		}	
 		
 		GenericMessage<String> newMessage = new GenericMessage<String> (object.toString());
