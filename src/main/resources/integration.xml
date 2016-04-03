@@ -13,65 +13,59 @@
 		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
 		http://www.springframework.org/schema/integration/mongodb http://www.springframework.org/schema/integration/mongodb/spring-integration-mongodb-4.2.xsd">
 
-	<bean id="integrationProperties"
-		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+	<bean id="integrationProperties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
 		<property name="location" value="classpath:integration.properties" />
 	</bean>
 
-	<bean id="mqttClientFactory"
-		class="org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory">
+	<bean id="mqttClientFactory" class="org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory">
 		<property name="serverURIs" value="${mqtt.url}"></property>
 	</bean>
 
 	<mongo:mongo id="mongo" host="${mongo.host}" port="${mongo.port}" />
 
-	<mongo:db-factory id="mongoDbFactory" host="${mongo.host}"
-		port="${mongo.port}" dbname="fleetr" mongo-ref="mongo" />
+	<mongo:db-factory id="mongoDbFactory" host="${mongo.host}" port="${mongo.port}" dbname="fleetr" mongo-ref="mongo" />
 
 	<bean id="deviceRouter" class="eu.fleetr.components.FleetrDeviceRouter">
 		<constructor-arg name="consumerName" value="toProcessor"></constructor-arg>
 	</bean>
 
-	<int:channel id="toRouter">
+	<int:channel id="mqttOutput">
 		<int:queue />
 		<int:interceptors>
-			<int:wire-tap channel="toMongoTap"/>
+			<int:wire-tap channel="mongoTap"/>
 		</int:interceptors>
 	</int:channel>
-
-	<int:channel id="toMongoTap" />
+	
+	
+	<bean id="stringToJsonTransformer" class="eu.fleetr.components.StringToJSONTransformer" />
+	
+	<int:channel id="toRouter"/>
+	
+	<int:transformer input-channel="mqttOutput" output-channel="toRouter" ref="stringToJsonTransformer" >
+		<int:poller fixed-delay="10" />
+	</int:transformer>
 
 	<int-mqtt:message-driven-channel-adapter
 		id="mqtt" client-factory="mqttClientFactory" client-id="${mqtt.clientId}"
-		qos="2" topics="${mqtt.topics}" channel="toRouter" />
+		qos="2" topics="${mqtt.topics}" channel="mqttOutput" />
 
-	<int:router ref="deviceRouter" input-channel="toRouter">
-		<int:poller fixed-delay="10" />
-	</int:router>
+	<int:router id="router" ref="deviceRouter" input-channel="toRouter"/>
 
 	<int-mongodb:outbound-channel-adapter
-		id="mongoTap" collection-name="logbook" mongodb-factory="mongoDbFactory"
-		channel="toMongoTap">
-		<!-- <int:poller fixed-delay="10" /> -->
+		id="mongoTap" collection-name="logbook" mongodb-factory="mongoDbFactory" >
 	</int-mongodb:outbound-channel-adapter>
 
 	<int:channel id="toProcessor" />
 
-	<!-- <int:service-activator input-channel="toProcessor" id="fleetrProcessor" 
-		method="handleMessage" output-channel="toMongo"> <bean class="eu.fleetr.components.FleetrMessageHandler" 
-		/> </int:service-activator> -->
-
-
-	<bean id="fleetrTransformerBean" class="eu.fleetr.components.FleetrMessageTransformer" />
+	<bean id="fleetrTransformerBean" class="eu.fleetr.components.FleetrMessageTransformer" >
+		<constructor-arg name="mongoFactory" ref="mongoDbFactory"></constructor-arg>
+	</bean>
 	<int:transformer id="fleetrTransformer" ref="fleetrTransformerBean"
-		input-channel="toProcessor" method="transform" output-channel="toMongo" />
-	
-	<!-- <int:logging-channel-adapter id="logger"
-		level="INFO" channel="toMongo" /> -->
+		input-channel="toProcessor" method="transform" output-channel="mongoSink" >
+		<constructor-arg name="mongoFactory" ref="mongoDbFactory"></constructor-arg>
+	</int:transformer>
 
-	<int:channel id="toMongo" />
 	<int-mongodb:outbound-channel-adapter
-		id="mongoSink" collection-name="trips" mongodb-factory="mongoDbFactory"
-		channel="toMongo" />
+		id="mongoSink" collection-name="trips" mongodb-factory="mongoDbFactory"  />
 
 </beans>

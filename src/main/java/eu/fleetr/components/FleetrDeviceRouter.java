@@ -29,7 +29,9 @@ public class FleetrDeviceRouter extends AbstractMessageRouter {
 	}
 	
 	protected SubscribableChannel getChannel(Message<?> message) {
-		Long deviceId = getDeviceId(message);
+		JSONObject payload = (JSONObject) message.getPayload();
+		Long deviceId = payload.getLong("deviceId"); 
+		
 		SubscribableChannel channel = this.channels.get(deviceId);
 
 		if (channel == null) {
@@ -54,11 +56,6 @@ public class FleetrDeviceRouter extends AbstractMessageRouter {
 		}
 		logger.info("Found existing channel:" + ((DirectChannel) channel).getComponentName());
 		return channel;
-	}
-
-	protected Long getDeviceId(Message<?> message) {
-		JSONObject object = new JSONObject(message.getPayload().toString());
-		return object.getLong("deviceId");
 	}
 
 	@Override
