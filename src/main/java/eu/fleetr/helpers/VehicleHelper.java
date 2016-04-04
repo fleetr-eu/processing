@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.data.mongodb.MongoDbFactory;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,8 +15,8 @@ public class VehicleHelper {
 
 	private MongoTemplate mongoTemplate;
 
-	public VehicleHelper(MongoDbFactory mongoFactory) {
-		mongoTemplate = new MongoTemplate(mongoFactory);
+	public VehicleHelper(MongoTemplate mongoTemplate) {
+		this.mongoTemplate = mongoTemplate;
 	}
 
 	@SuppressWarnings("unchecked")

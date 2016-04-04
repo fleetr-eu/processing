@@ -22,14 +22,17 @@
 	</bean>
 
 	<mongo:mongo id="mongo" host="${mongo.host}" port="${mongo.port}" />
-	<mongo:db-factory id="mongoDbFactory" host="${mongo.host}" port="${mongo.port}" dbname="fleetr" mongo-ref="mongo" />
-
+	<mongo:db-factory id="mongoDbFactory" dbname="fleetr" mongo-ref="mongo" />
+	<bean id="mongoTemplate" class="org.springframework.data.mongodb.core.MongoTemplate">
+		<constructor-arg name="mongoDbFactory" ref="mongoDbFactory" />
+	</bean>
+	
 	<bean id="deviceRouter" class="eu.fleetr.components.FleetrDeviceRouter">
 		<constructor-arg name="consumerName" value="toProcessor"></constructor-arg>
 	</bean>
 	
 	<bean id="vehicleHelper" class="eu.fleetr.helpers.VehicleHelper">
-		<constructor-arg name="mongoFactory" ref="mongoDbFactory"></constructor-arg>
+		<constructor-arg name="mongoTemplate" ref="mongoTemplate"></constructor-arg>
 	</bean>
 
 	<int:channel id="mqttOutput">
@@ -49,7 +52,7 @@
 		<int:router id="router" ref="deviceRouter"/>
 	</int:chain>
 
-	<int-mongodb:outbound-channel-adapter id="mongoTap" collection-name="logbook" mongodb-factory="mongoDbFactory" />
+	<int-mongodb:outbound-channel-adapter id="mongoTap" collection-name="logbook" mongo-template="mongoTemplate" />
 
 	<int:channel id="toProcessor" />
 	
@@ -58,7 +61,7 @@
 		   <int:property name="vehicle" expression="@vehicleHelper.getVehicle(payload.deviceId)"></int:property>
 		</int:enricher>
 		<int:object-to-json-transformer id="jsonToSting" />
-		<int-mongodb:outbound-channel-adapter id="mongoSink" collection-name="trips" mongodb-factory="mongoDbFactory"  />
+		<int-mongodb:outbound-channel-adapter id="mongoSink" collection-name="trips" mongo-template="mongoTemplate" />
 	</int:chain>
 
 </beans>
