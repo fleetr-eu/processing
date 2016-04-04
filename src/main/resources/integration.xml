@@ -22,11 +22,14 @@
 	</bean>
 
 	<mongo:mongo id="mongo" host="${mongo.host}" port="${mongo.port}" />
-
 	<mongo:db-factory id="mongoDbFactory" host="${mongo.host}" port="${mongo.port}" dbname="fleetr" mongo-ref="mongo" />
 
 	<bean id="deviceRouter" class="eu.fleetr.components.FleetrDeviceRouter">
 		<constructor-arg name="consumerName" value="toProcessor"></constructor-arg>
+	</bean>
+	
+	<bean id="vehicleHelper" class="eu.fleetr.helpers.VehicleHelper">
+		<constructor-arg name="mongoFactory" ref="mongoDbFactory"></constructor-arg>
 	</bean>
 
 	<int:channel id="mqttOutput">
@@ -35,37 +38,27 @@
 			<int:wire-tap channel="mongoTap"/>
 		</int:interceptors>
 	</int:channel>
-	
-	
-	<bean id="stringToJsonTransformer" class="eu.fleetr.components.StringToJSONTransformer" />
-	
-	<int:channel id="toRouter"/>
-	
-	<int:transformer input-channel="mqttOutput" output-channel="toRouter" ref="stringToJsonTransformer" >
-		<int:poller fixed-delay="10" />
-	</int:transformer>
-
+		
 	<int-mqtt:message-driven-channel-adapter
 		id="mqtt" client-factory="mqttClientFactory" client-id="${mqtt.clientId}"
 		qos="2" topics="${mqtt.topics}" channel="mqttOutput" />
+	
+	<int:chain input-channel="mqttOutput">
+		<int:poller fixed-rate="10" />
+		<int:json-to-object-transformer type="java.util.Map" />
+		<int:router id="router" ref="deviceRouter"/>
+	</int:chain>
 
-	<int:router id="router" ref="deviceRouter" input-channel="toRouter"/>
-
-	<int-mongodb:outbound-channel-adapter
-		id="mongoTap" collection-name="logbook" mongodb-factory="mongoDbFactory" >
-	</int-mongodb:outbound-channel-adapter>
+	<int-mongodb:outbound-channel-adapter id="mongoTap" collection-name="logbook" mongodb-factory="mongoDbFactory" />
 
 	<int:channel id="toProcessor" />
-
-	<bean id="fleetrTransformerBean" class="eu.fleetr.components.FleetrMessageTransformer" >
-		<constructor-arg name="mongoFactory" ref="mongoDbFactory"></constructor-arg>
-	</bean>
-	<int:transformer id="fleetrTransformer" ref="fleetrTransformerBean"
-		input-channel="toProcessor" method="transform" output-channel="mongoSink" >
-		<constructor-arg name="mongoFactory" ref="mongoDbFactory"></constructor-arg>
-	</int:transformer>
-
-	<int-mongodb:outbound-channel-adapter
-		id="mongoSink" collection-name="trips" mongodb-factory="mongoDbFactory"  />
+	
+	<int:chain input-channel="toProcessor">
+		<int:enricher >
+		   <int:property name="vehicle" expression="@vehicleHelper.getVehicle(payload.deviceId)"></int:property>
+		</int:enricher>
+		<int:object-to-json-transformer id="jsonToSting" />
+		<int-mongodb:outbound-channel-adapter id="mongoSink" collection-name="trips" mongodb-factory="mongoDbFactory"  />
+	</int:chain>
 
 </beans>
