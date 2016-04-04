@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.Map;
 
-import org.json.JSONObject;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.integration.channel.DirectChannel;
@@ -18,7 +18,7 @@ import org.springframework.messaging.SubscribableChannel;
 
 public class FleetrDeviceRouter extends AbstractMessageRouter {
 
-	private final LinkedHashMap<Long, SubscribableChannel> channels = new LinkedHashMap<Long, SubscribableChannel>();
+	private final LinkedHashMap<Number, SubscribableChannel> channels = new LinkedHashMap<Number, SubscribableChannel>();
 
 	ExpressionParser parser = new SpelExpressionParser();
 
@@ -28,9 +28,9 @@ public class FleetrDeviceRouter extends AbstractMessageRouter {
 		this.consumerName = consumerName;
 	}
 	
-	protected SubscribableChannel getChannel(Message<?> message) {
-		JSONObject payload = (JSONObject) message.getPayload();
-		Long deviceId = payload.getLong("deviceId"); 
+	protected SubscribableChannel getChannel(Message<Map<String, Object>> message) {
+		
+		Number deviceId = (Number)message.getPayload().get("deviceId"); 
 		
 		SubscribableChannel channel = this.channels.get(deviceId);
 
@@ -61,7 +61,7 @@ public class FleetrDeviceRouter extends AbstractMessageRouter {
 	@Override
 	protected Collection<MessageChannel> determineTargetChannels(Message<?> message) {
 		ArrayList<MessageChannel> list = new ArrayList<MessageChannel>();
-		list.add(getChannel(message));
+		list.add(getChannel((Message<Map<String, Object>>)message));
 		return Collections.unmodifiableList(list);
 	}
 }

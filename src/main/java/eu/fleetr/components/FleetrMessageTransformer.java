@@ -3,19 +3,21 @@ package eu.fleetr.components;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static org.springframework.data.mongodb.core.query.Query.query;
 
-import org.json.JSONObject;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.context.annotation.Scope;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.mongodb.MongoDbFactory;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.integration.annotation.Transformer;
 import org.springframework.messaging.Message;
-import org.springframework.messaging.MessagingException;
 import org.springframework.messaging.support.GenericMessage;
 
-import com.mongodb.DBCursor;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.DBObject;
-import com.mongodb.util.JSON;
 
 @Scope("prototype")
 public class FleetrMessageTransformer {
@@ -33,18 +35,29 @@ public class FleetrMessageTransformer {
 	}	 
 	
 	@Transformer
-    public Message<String> transform(Message<JSONObject> message) {
+    public Message<String> transform(Message<Map<String, Object>> message) {
 		
-		JSONObject object = (JSONObject) message.getPayload();
-		Long deviceId = object.getLong("deviceId");
-		
-		JSONObject vehicle = new JSONObject(mongoTemplate.findOne(query(where("unitId").is(deviceId)), String.class, "vehicles"));
+		Number deviceId = (Number) message.getPayload().get("deviceId");
+
+		String vehicleString = mongoTemplate.findOne(query(where("unitId").is(deviceId)), String.class, "vehicles");
+		Map<String, Object> vehicle = null;
+		try {
+			vehicle = new ObjectMapper().readValue(vehicleString, HashMap.class);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		if (vehicle != null) {
-			object.append("vechile", vehicle);
+			message.getPayload().put("vechile", vehicle);
 		}	
 		
-		GenericMessage<String> newMessage = new GenericMessage<String> (object.toString());
+		try {
+			return new GenericMessage(new ObjectMapper().writeValueAsString(message.getPayload()));
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
-        return newMessage;
+        return new GenericMessage(null);
     }
 }

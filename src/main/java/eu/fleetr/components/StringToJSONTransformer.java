@@ -1,15 +1,26 @@
 package eu.fleetr.components;
 
-import org.json.JSONObject;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.integration.annotation.Transformer;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.GenericMessage;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 public class StringToJSONTransformer {
 	
 	@Transformer
-	public Message<JSONObject> transform(Message<String> message) {
-		JSONObject object = new JSONObject(message.getPayload().toString());
-		return new GenericMessage<JSONObject>(object);
+	public Message<Map<String, Object>> transform(Message<String> message) {
+		HashMap<String, Object> result = null;
+		try {
+			result = new ObjectMapper().readValue(message.getPayload(), HashMap.class);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return new GenericMessage<Map<String, Object>> (result);
 	}
 }
